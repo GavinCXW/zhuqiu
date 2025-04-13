@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日晷影子记录</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap">
+    <style>
+        :root {
+            --primary-color: #3f51b5;
+            --primary-light: #757de8;
+            --primary-dark: #002984;
+            --accent-color: #ff9800;
+            --accent-light: #ffc947;
+            --accent-dark: #c66900;
+            --text-primary: #212121;
+            --text-secondary: #757575;
+            --background-light: #f5f7fa;
+            --border-color: #e0e0e0;
+            --shadow-color: rgba(0, 0, 0, 0.1);
+            --event-color: #e91e63;
+            --event-light: #ff6090;
+            --event-dark: #b0003a;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Noto Sans SC', Arial, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            text-align: center;
+            color: var(--text-primary);
+            background-color: var(--background-light);
+            line-height: 1.6;
+        }
+        
+        h1 {
+            color: var(--primary-dark);
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+            position: relative;
+            display: inline-block;
+            padding-bottom: 10px;
+        }
+        
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 3px;
+            background: linear-gradient(to right, var(--primary-light), var(--accent-light));
+            border-radius: 3px;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 6px 16px var(--shadow-color);
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .canvas-container {
+            position: relative;
+            margin: 20px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+        
+        canvas {
+            border: 1px solid var(--border-color);
+            background-color: white;
+            display: block;
+        }
+        
+        .directions {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .direction {
+            position: absolute;
+            font-weight: bold;
+            color: var(--primary-dark);
+        }
+        
+        .north { top: 5px; left: 50%; transform: translateX(-50%); }
+        .east { right: 5px; top: 50%; transform: translateY(-50%); }
+        .south { bottom: 5px; left: 50%; transform: translateX(-50%); }
+        .west { left: 5px; top: 50%; transform: translateY(-50%); }
+        
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 12px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 5px var(--shadow-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        button:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px var(--shadow-color);
+        }
+        
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 3px var(--shadow-color);
+        }
+        
+        button:disabled {
+            background-color: var(--text-secondary);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+            opacity: 0.7;
+        }
+        
+        #startBtn {
+            background-color: var(--accent-color);
+        }
+        
+        #startBtn:hover {
+            background-color: var(--accent-dark);
+        }
+        
+        .info {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: rgba(63, 81, 181, 0.05);
+            border-radius: 8px;
+            border-left: 4px solid var(--primary-color);
+            text-align: left;
+            font-size: 15px;
+            color: var(--text-secondary);
+        }
+        
+        .info p {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .info span {
+            font-weight: 500;
+            color: var(--text-primary);
+        }
+        
+        .bamboo-info {
+            font-weight: 500;
+            margin: 15px 0;
+            padding: 10px 15px;
+            background-color: rgba(255, 152, 0, 0.1);
+            border-radius: 50px;
+            display: inline-block;
+            color: var(--accent-dark);
+        }
+        
+        .record-list {
+            width: 100%;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px var(--shadow-color);
+            background-color: white;
+        }
+        
+        .record-list::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .record-list::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 8px;
+        }
+        
+        .record-list::-webkit-scrollbar-thumb {
+            background: var(--primary-light);
+            border-radius: 8px;
+        }
+        
+
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+        }
+        
+        th {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 500;
+            position: sticky;
+            top: 0;
+        }
+        
+        tr:nth-child(even) {
+            background-color: rgba(63, 81, 181, 0.05);
+        }
+        
+        tr:hover {
+            background-color: rgba(63, 81, 181, 0.1);
+        }
+        
+        td {
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        /* 动画效果 */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+        
+        /* 图标样式 */
+        .icon {
+            font-style: normal;
+            margin-right: 5px;
+        }
+        
+        /* 表格标题 */
+        .record-list h3 {
+            color: var(--primary-dark);
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        
+        /* 记录状态样式 */
+        #recordStatus {
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        #recordStatus:contains('未开始') {
+            background-color: rgba(117, 117, 117, 0.1);
+            color: var(--text-secondary);
+        }
+        
+        #recordStatus:contains('记录中') {
+            background-color: rgba(255, 152, 0, 0.1);
+            color: var(--accent-dark);
+            animation: pulse 2s infinite;
+        }
+        
+        #recordStatus:contains('已停止') {
+            background-color: rgba(63, 81, 181, 0.1);
+            color: var(--primary-dark);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 15px 10px;
+            }
+            
+            .controls {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            button {
+                padding: 8px 16px;
+                font-size: 14px;
+            }
+            
+            th, td {
+                padding: 8px 10px;
+                font-size: 14px;
+            }
+            
+            .canvas-container {
+                transform: scale(0.9);
+                margin: 10px 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>日晷影子记录（12 - 程竹秋）</h1>
+    <div class="bamboo-info"><i class="icon">📏</i> 小棍高度: 10cm | <i class="icon">📍</i> 位置: 北纬30° | <i class="icon">📅</i> 日期: 4月1日</div>
+    
+    <div class="container">
+        <div class="canvas-container">
+            <canvas id="shadowCanvas" width="400" height="400"></canvas>
+            <div class="directions">
+                <div class="direction north">北</div>
+                <div class="direction east">东</div>
+                <div class="direction south">南</div>
+                <div class="direction west">西</div>
+            </div>
+
+        </div>
+        
+        <div class="controls">
+            <button id="startBtn"><i class="icon">▶️</i> 开始记录</button>
+            <button id="stopBtn" disabled><i class="icon">⏹️</i> 停止记录</button>
+            <button id="resetBtn"><i class="icon">🔄</i> 重置</button>
+        </div>
+        
+        <div class="info">
+            <p>当前时间: <span id="currentTime">08:00:00</span></p>
+            <p>当前影子长度: <span id="currentShadowLength">0.00</span> cm</p>
+            <p>记录状态: <span id="recordStatus">未开始</span></p>
+        </div>
+        
+        <div class="record-list">
+            <h3>记录数据</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>影子长度 (cm)</th>
+                        <th>影子方向</th>
+                    </tr>
+                </thead>
+                <tbody id="recordsTableBody">
+                    <!-- 记录将在这里动态添加 -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 常量定义
+        const BAMBOO_HEIGHT = 10; // 竹竿高度，单位厘米
+        const LATITUDE = 30; // 北纬30度
+        const DATE = new Date(2023, 3, 1); // 4月1日（月份从0开始）
+        const START_TIME = new Date(DATE.getFullYear(), DATE.getMonth(), DATE.getDate(), 8, 0, 0); // 8:00开始
+        const RECORD_INTERVAL = 5 * 60 * 1000; // 5分钟记录一次，单位毫秒
+        const SIMULATION_SPEED = 100; // 模拟速度，0.1秒 = 1分钟，加快模拟速度
+        
+        // 添加动画效果
+        document.addEventListener('DOMContentLoaded', function() {
+            // 页面加载动画
+            document.querySelector('h1').classList.add('fade-in');
+            
+            // 按钮悬停效果
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(button => {
+                button.addEventListener('mouseover', function() {
+                    this.style.transform = 'translateY(-2px)';
+                });
+                button.addEventListener('mouseout', function() {
+                    if (!this.disabled) {
+                        this.style.transform = '';
+                    }
+                });
+            });
+        });
+        
+        // 获取DOM元素
+        const canvas = document.getElementById('shadowCanvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const currentTimeEl = document.getElementById('currentTime');
+        const currentShadowLengthEl = document.getElementById('currentShadowLength');
+        const recordStatusEl = document.getElementById('recordStatus');
+        const recordsTableBody = document.getElementById('recordsTableBody');
+        
+        // 状态变量
+        let currentTime = new Date(START_TIME);
+        let isRecording = false;
+        let recordTimer = null;
+        let updateTimer = null;
+        let shadowPoints = [];
+        
+        // 画布参数
+        const canvasWidth = canvas.width;
+        const canvasHeight = canvas.height;
+        const centerX = canvasWidth / 2;
+        const centerY = canvasHeight / 2;
+        const scale = 10; // 1厘米 = 10像素
+        
+        // 初始化
+        function init() {
+            currentTime = new Date(START_TIME);
+            shadowPoints = [];
+            recordsTableBody.innerHTML = '';
+            updateTimeDisplay();
+            drawScene();
+        }
+        
+
+        
+        // 绘制场景
+        function drawScene() {
+            // 清空画布
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            
+            // 绘制网格
+            drawGrid();
+            
+            // 绘制竹竿（俯视图中为一个点）
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, 5, 0, Math.PI * 2);
+            ctx.fillStyle = '#008800';
+            ctx.fill();
+            ctx.strokeStyle = '#005500';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+            
+            // 计算并绘制当前影子
+            const shadowData = calculateShadow(currentTime);
+            drawShadow(shadowData, false);
+            
+            // 绘制已记录的影子点 - 只绘制端点，不绘制连线
+            shadowPoints.forEach(point => {
+                drawShadow(point, true);
+            });
+            
+            // 绘制影子点之间的连线 - 只连接最新出现的点与前一个点
+            // 这样可以清晰地看到影子移动的轨迹，而不会因为太多连线而混乱
+            if (shadowPoints.length > 1) {
+                // 只绘制最后一个点与前一个点之间的连线
+                const lastPoint = shadowPoints[shadowPoints.length - 1];
+                const prevPoint = shadowPoints[shadowPoints.length - 2];
+                
+                // 计算两个点的坐标
+                const lastX = centerX - lastPoint.length * scale * Math.sin(lastPoint.azimuth * Math.PI / 180);
+                const lastY = centerY + lastPoint.length * scale * Math.cos(lastPoint.azimuth * Math.PI / 180);
+                
+                const prevX = centerX - prevPoint.length * scale * Math.sin(prevPoint.azimuth * Math.PI / 180);
+                const prevY = centerY + prevPoint.length * scale * Math.cos(prevPoint.azimuth * Math.PI / 180);
+                
+                // 绘制连线 - 只连接最后两个点
+                ctx.beginPath();
+                ctx.moveTo(prevX, prevY);
+                ctx.lineTo(lastX, lastY);
+                ctx.strokeStyle = 'rgba(63, 81, 181, 0.5)';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+                
+                // 绘制最新记录点与圆心的连线
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(lastX, lastY);
+                ctx.strokeStyle = 'rgba(63, 81, 181, 0.7)';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+            }
+        }
+        
+        // 绘制网格
+        function drawGrid() {
+            // 绘制背景
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // 绘制细网格
+            ctx.strokeStyle = 'rgba(200, 200, 200, 0.3)';
+            ctx.lineWidth = 0.5;
+            
+            // 绘制水平线
+            for (let y = 0; y <= canvasHeight; y += scale) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvasWidth, y);
+                ctx.stroke();
+            }
+            
+            // 绘制垂直线
+            for (let x = 0; x <= canvasWidth; x += scale) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvasHeight);
+                ctx.stroke();
+            }
+            
+            // 绘制中心十字线
+            ctx.strokeStyle = 'rgba(63, 81, 181, 0.5)';
+            ctx.lineWidth = 1.5;
+            
+            // 水平中心线
+            ctx.beginPath();
+            ctx.moveTo(0, centerY);
+            ctx.lineTo(canvasWidth, centerY);
+            ctx.stroke();
+            
+            // 垂直中心线
+            ctx.beginPath();
+            ctx.moveTo(centerX, 0);
+            ctx.lineTo(centerX, canvasHeight);
+            ctx.stroke();
+            
+            // 绘制圆形参考线
+            ctx.strokeStyle = 'rgba(63, 81, 181, 0.2)';
+            ctx.lineWidth = 1;
+            for (let r = scale; r <= canvasWidth/2; r += scale*2) {
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        }
+        
+        // 绘制影子
+        function drawShadow(shadowData, isRecorded) {
+            const { length, azimuth } = shadowData;
+            
+            // 如果是记录点，则显示所有方向的影子
+            // 如果不是记录点，只显示北边的影子（方位角在270°到90°之间）
+            // 方位角：北=0°，东=90°，南=180°，西=270°
+            if (!isRecorded && azimuth > 90 && azimuth < 270) {
+                return; // 不绘制南边的影子（仅对当前影子有效，记录点不受限制）
+            }
+            
+            // 计算影子端点坐标
+            // 注意：在Canvas中，y轴向下为正，所以需要反转
+            // 修正：将y轴方向翻转，使影子显示方向与实际相符
+            // 修正：将x轴方向也翻转，使影子左右方向与实际相符
+            const endX = centerX - length * scale * Math.sin(azimuth * Math.PI / 180);
+            const endY = centerY + length * scale * Math.cos(azimuth * Math.PI / 180);
+            
+            if (isRecorded) {
+                // 对于已记录的点，只绘制端点，不绘制从中心到端点的线条
+                // 绘制影子端点
+                ctx.beginPath();
+                
+                // 判断是否为最新记录的点
+                const isLatestPoint = shadowPoints.length > 0 && 
+                                      shadowData.time.getTime() === shadowPoints[shadowPoints.length - 1].time.getTime();
+                
+                if (isLatestPoint) {
+                    // 最新记录的点使用突出样式
+                    // 外圈光晕
+                    ctx.beginPath();
+                    ctx.arc(endX, endY, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(233, 30, 99, 0.2)';
+                    ctx.fill();
+                    
+                    // 中间圈
+                    ctx.beginPath();
+                    ctx.arc(endX, endY, 6, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(233, 30, 99, 0.5)';
+                    ctx.fill();
+                    
+                    // 内圈
+                    ctx.beginPath();
+                    ctx.arc(endX, endY, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(233, 30, 99, 1)';
+                    ctx.fill();
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                } else {
+                    // 普通记录点
+                    ctx.arc(endX, endY, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(63, 81, 181, 0.8)';
+                    ctx.fill();
+                }
+                
+                // 不再显示时间标签和线条
+            } else {
+                // 当前影子使用动态效果
+                const gradient = ctx.createLinearGradient(centerX, centerY, endX, endY);
+                gradient.addColorStop(0, 'rgba(255, 152, 0, 0.9)');
+                gradient.addColorStop(1, 'rgba(255, 152, 0, 0.3)');
+                
+                // 绘制从圆心到影子端点的连线
+                ctx.beginPath();
+                ctx.moveTo(centerX, centerY);
+                ctx.lineTo(endX, endY);
+                ctx.strokeStyle = gradient;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                
+                // 绘制影子端点 - 带光晕效果
+                // 外圈光晕
+                ctx.beginPath();
+                ctx.arc(endX, endY, 8, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 152, 0, 0.2)';
+                ctx.fill();
+                
+                // 中间圈
+                ctx.beginPath();
+                ctx.arc(endX, endY, 5, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 152, 0, 0.5)';
+                ctx.fill();
+                
+                // 内圈
+                ctx.beginPath();
+                ctx.arc(endX, endY, 3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 152, 0, 1)';
+                ctx.fill();
+                ctx.strokeStyle = 'white';
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+        
+        // 计算太阳位置和影子
+        function calculateShadow(time) {
+            // 获取当天的日期部分
+            const day = time.getDate();
+            const month = time.getMonth() + 1; // 月份从0开始
+            const year = time.getFullYear();
+            
+            // 获取时间部分
+            const hours = time.getHours();
+            const minutes = time.getMinutes();
+            
+            // 计算一年中的天数（从1月1日开始）
+            const dayOfYear = calculateDayOfYear(year, month, day);
+            
+            // 计算太阳赤纬角
+            const declination = calculateDeclination(dayOfYear);
+            
+            // 计算时角（每小时15度，正午为0度）
+            const hourAngle = calculateHourAngle(hours, minutes);
+            
+            // 计算太阳高度角
+            const altitude = calculateSolarAltitude(LATITUDE, declination, hourAngle);
+            
+            // 计算太阳方位角
+            const azimuth = calculateSolarAzimuth(LATITUDE, declination, hourAngle, altitude);
+            
+            // 计算影子长度（竹竿高度 / tan(太阳高度角)）
+            let length = 0;
+            if (altitude > 0) { // 确保太阳在地平线上
+                length = BAMBOO_HEIGHT / Math.tan(altitude * Math.PI / 180);
+            } else {
+                length = 100; // 太阳在地平线下，设置一个很长的影子
+            }
+            
+            // 返回影子数据
+            return {
+                time: new Date(time),
+                length: parseFloat(length.toFixed(2)),
+                azimuth: azimuth,
+                altitude: altitude
+            };
+        }
+        
+        // 计算一年中的天数
+        function calculateDayOfYear(year, month, day) {
+            const monthDays = [0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+            
+            // 处理闰年
+            if (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) {
+                monthDays[2] = 29;
+            }
+            
+            let dayOfYear = day;
+            for (let i = 1; i < month; i++) {
+                dayOfYear += monthDays[i];
+            }
+            
+            return dayOfYear;
+        }
+        
+        // 计算太阳赤纬角
+        function calculateDeclination(dayOfYear) {
+            // 简化的太阳赤纬角计算公式
+            return 23.45 * Math.sin((360 / 365) * (dayOfYear - 81) * Math.PI / 180);
+        }
+        
+        // 计算时角
+        function calculateHourAngle(hours, minutes) {
+            // 计算当地太阳时（简化，不考虑经度和时区）
+            const solarTime = hours + minutes / 60;
+            
+            // 时角：每小时15度，正午为0度
+            return (solarTime - 12) * 15;
+        }
+        
+        // 计算太阳高度角
+        function calculateSolarAltitude(latitude, declination, hourAngle) {
+            const latRad = latitude * Math.PI / 180;
+            const declRad = declination * Math.PI / 180;
+            const hourRad = hourAngle * Math.PI / 180;
+            
+            const sinAlt = Math.sin(latRad) * Math.sin(declRad) + 
+                          Math.cos(latRad) * Math.cos(declRad) * Math.cos(hourRad);
+            
+            return Math.asin(sinAlt) * 180 / Math.PI;
+        }
+        
+        // 计算太阳方位角
+        function calculateSolarAzimuth(latitude, declination, hourAngle, altitude) {
+            const latRad = latitude * Math.PI / 180;
+            const declRad = declination * Math.PI / 180;
+            const hourRad = hourAngle * Math.PI / 180;
+            const altRad = altitude * Math.PI / 180;
+            
+            const cosAz = (Math.sin(declRad) - Math.sin(altRad) * Math.sin(latRad)) / 
+                         (Math.cos(altRad) * Math.cos(latRad));
+            
+            let azimuth = Math.acos(Math.max(-1, Math.min(1, cosAz))) * 180 / Math.PI;
+            
+            // 修正方位角计算
+            // 早上时角为负，下午时角为正
+            // 北半球：上午太阳在东南方（影子指向西北方），下午太阳在西南方（影子指向东北方）
+            if (hourAngle > 0) {
+                // 下午：太阳在西南方，影子指向东北方
+                azimuth = 360 - azimuth;
+            }
+            
+            // 调整方位角，确保北方在上方（北=0°，东=90°，南=180°，西=270°）
+            return azimuth;
+        }
+        
+        // 更新时间显示
+        function updateTimeDisplay() {
+            // 更新模拟时间显示
+            currentTimeEl.textContent = currentTime.toTimeString().substring(0, 8);
+            
+            // 计算并显示当前影子长度
+            const shadowData = calculateShadow(currentTime);
+            currentShadowLengthEl.textContent = shadowData.length.toFixed(2);
+            
+            // 更新画面
+            drawScene();
+        }
+        
+        // 更新显示
+        updateTimeDisplay();
+        
+        // 记录影子
+        function recordShadow() {
+            const shadowData = calculateShadow(currentTime);
+            shadowPoints.push(shadowData);
+            
+            // 计算调整后的角度（减去90度，并确保在0-360度范围内）
+            let adjustedAzimuth = shadowData.azimuth - 90;
+            if (adjustedAzimuth < 0) {
+                adjustedAzimuth += 360;
+            }
+            
+            // 添加到表格
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${shadowData.time.toTimeString().substring(0, 5)}</td>
+                <td>${shadowData.length.toFixed(2)}</td>
+                <td>${adjustedAzimuth.toFixed(0)}°</td>
+            `;
+            recordsTableBody.appendChild(row);
+            
+            // 滚动到底部
+            const recordList = document.querySelector('.record-list');
+            recordList.scrollTop = recordList.scrollHeight;
+            
+            // 更新画面
+            drawScene();
+        }
+        
+        // 获取方向名称（已不再使用，保留函数以避免引用错误）
+        function getDirectionName(azimuth) {
+            return azimuth.toFixed(0) + '°';
+        }
+        
+        // 开始记录
+        function startRecording() {
+            if (isRecording) return;
+            
+            isRecording = true;
+            startBtn.disabled = true;
+            stopBtn.disabled = false;
+            recordStatusEl.textContent = '记录中...';
+            
+            // 立即记录一次
+            recordShadow();
+            
+            // 设置定时器，每SIMULATION_SPEED毫秒更新一次时间（模拟1分钟）
+            updateTimer = setInterval(() => {
+                // 增加1分钟
+                currentTime = new Date(currentTime.getTime() + 60 * 1000);
+                updateTimeDisplay();
+                
+                // 如果到达5分钟的整数倍，记录影子
+                if (currentTime.getMinutes() % 5 === 0 && currentTime.getSeconds() === 0) {
+                    recordShadow();
+                }
+                
+
+                
+                // 如果时间超过下午4点，自动停止
+                if (currentTime.getHours() >= 16) {
+                    stopRecording();
+                }
+            }, SIMULATION_SPEED);
+        }
+        
+        // 停止记录
+        function stopRecording() {
+            if (!isRecording) return;
+            
+            isRecording = false;
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            recordStatusEl.textContent = '已停止';
+            
+            clearInterval(updateTimer);
+            clearInterval(recordTimer);
+        }
+        
+        // 重置
+        function reset() {
+            stopRecording();
+            init();
+            recordStatusEl.textContent = '未开始';
+        }
+        
+        // 事件监听
+        startBtn.addEventListener('click', startRecording);
+        stopBtn.addEventListener('click', stopRecording);
+        resetBtn.addEventListener('click', reset);
+        
+        // 初始化应用
+        init();
+    </script>
+</body>
+</html>
